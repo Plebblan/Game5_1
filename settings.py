@@ -1,0 +1,98 @@
+"""
+    Stores Game settings + hardcode stuffs + magic numbers
+"""
+import pygame
+import sys, json
+from pygame.locals import *
+import math
+
+import os
+import re
+import csv
+
+os.environ['SDL_VIDEO_CENTERED'] = '1'
+
+TILE_SIZE = 36
+MAP_NUMS = (140, 40)
+INDEX_MAP = [[0 for _ in range(MAP_NUMS[0])] for _ in range(MAP_NUMS[1])]
+
+
+#Game settings
+GAME_NAME = "Run"
+SCREEN_WIDTH = 640
+SCREEN_HEIGHT = 360
+FPS = 120
+GAME_SCALE = 1
+
+GAME_VOLUME = 30
+
+FONT_SIZE = 36
+MENU_FONT = (56, 64)
+PAUSE_RESUME = (240, 255)
+PAUSE_EXIT = (280, 295)
+
+#Colors
+COLOR_WHITE = (255, 255, 255)
+COLOR_GREEN = (0, 255, 0)
+COLOR_BLACK = (0, 0, 0)
+
+#Game physics settings
+GAME_GRAVITY = 1000.0
+
+##place holder for map collision
+MAP_BOTTOM = 200
+MAP_LEFT = 0
+MAP_RIGHT = 120*36
+TOP_PADDING = 1000
+
+OFFSET_X = 15
+#player
+PLAYER_COLLISION_WIDTH = 32
+PLAYER_COLLISION_HEIGHT = 64
+
+# Player base stats
+PLAYER_SPEED = 250.0
+PLAYER_DASHCOOLDOWN = 1.0
+PLAYER_DASHSPEED = 3000.0
+PLAYER_JUMPSTRENGTH = 450.0
+PLAYER_JUMPHOLDTIME = 0.4                          # in secs
+PLAYER_DOUBLEJUMPHOLDTIME = 0.4                    # in secs
+PLAYER_DOUBLEJUMPSTRENGTH = 480.0
+PLAYER_INIT_POS = pygame.Vector2(36*10, 30*36)
+PLAYER_HURTBOX_WIDTH = 16
+PLAYER_HURTBOX_HEIGHT = 48
+PLAYER_CROUCH_HURTBOX_WIDTH = 16
+PLAYER_CROUCH_HURTBOX_HEIGHT = 32
+PLAYER_SLIDE_DURATION = 0.35
+PLAYER_SLIDE_SPEED = 450
+
+#Goblin
+GOB_WIDTH = 30
+GOB_HEIGHT = 100
+GOB_HEALTH = 5
+GOB_HIT_RANGE = 115
+GOB_HIT_HEIGHT = 20
+GOB_TRIM_ATTACK_LEFT = 90
+GOB_TRIM_ATTACK_RIGHT = 45
+GOB_SIGHT_RADIUS = 150
+GOB_SIGHT_ANGLE = 30
+GOB_DAMAGE = 15
+# store GOB tiles to step on
+GOB_INIT_POS = [
+    (2592, 2592 + 128 - GOB_WIDTH, 1116 - GOB_HEIGHT), 
+    (3132 + 160 - GOB_WIDTH, 3132, 792 - GOB_HEIGHT), 
+    (55*36,  60*36 - GOB_WIDTH, 8*36 - GOB_HEIGHT)]
+#Crystal
+CRYSTAL_POS = [(33*36, 12 * 36, 0), (391, 1260, 1)]
+# Wisp
+WISP_POS = [(3023, 900), (3023, 892), (2954, 941), (2968, 897), (2953, 928), (1200, 260), (1189, 300), (1178, 400), (1163, 378)]
+WISP_DAMAGE = 5
+# Boss base stats
+BOSS_INIT_POS = pygame.Vector2(320, -100)
+BOSS_ARENA = pygame.Rect(3436, 324, 1516, 692)
+
+#Items
+ITEM_COLLECT_RANGE = 50
+
+PLAYER_INIT_POS_TEST = pygame.Vector2(2850, 680)
+
