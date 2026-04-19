@@ -88,7 +88,6 @@ class NetworkServer:
             try:
                 client_socket, address = self.socket.accept()
                 player_id = str(uuid.uuid4())[:8]
-                
                 with self.players_lock:
                     if len(self.clients) >= self.max_players:
                         msg = NetworkMessage(MessageType.ERROR, {'error': 'Server full'})

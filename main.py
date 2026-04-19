@@ -1,7 +1,6 @@
 import pygame
 from game import Game
 
-
 def main():
 
     # initialize audio first (reduces sound latency)
@@ -10,22 +9,16 @@ def main():
     # initialize pygame
     pygame.init()
 
-    # ===== MULTIPLAYER CONFIGURATION =====
-    # Set enable_multiplayer=True to connect to server
-    # Set enable_multiplayer=False for single-player mode
+    
     ENABLE_MULTIPLAYER = True
     SERVER_HOST = 'localhost'
     SERVER_PORT = 5001
-    
     # create game
     game = Game(
         enable_multiplayer=ENABLE_MULTIPLAYER,
         server_host=SERVER_HOST,
         server_port=SERVER_PORT
     )
-
-    # load assets
-    game.load_assets()
 
     try:
         # start game loop

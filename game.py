@@ -8,6 +8,7 @@ from boss_projectile import *
 from fire_gate import *
 from asset_loader import AssetLoader
 import pygame
+import subprocess
 import sys
 from build import *
 from concurrent.futures import ThreadPoolExecutor
@@ -70,11 +71,12 @@ class Game:
         self._prev_shared_time_stop_active = False
         self._last_sent_map_state = None
         self._last_local_knife_ids = set()
-        self._init_network()
+        self.load_assets()
     
     def _init_network(self):
         """Initialize network manager"""
         if self.enable_multiplayer:
+            subprocess.Popen(["python3", "network_server_app.py"])
             print("[GAME] Starting in multiplayer mode...")
             self.net_manager = NetworkManager(
                 is_client=True,
@@ -91,7 +93,7 @@ class Game:
                 self.net_stats = NetworkStatistics()
         else:
             print("[GAME] Starting in single-player mode...")
-            self.net_manager = LocalNetworkManager() 
+            # self.net_manager = LocalNetworkManager() 
 
     # -----------------------
     # ASSET LOADING
@@ -265,6 +267,8 @@ class Game:
             if self.in_menu:
                 option = self.menu.handle_event(event)
                 if option:
+                    self.enable_multiplayer = self.menu.multi_mode
+                    self._init_network()
                     self.in_menu = False
             if event.type == pygame.QUIT:
                 pygame.quit()

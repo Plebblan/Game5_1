@@ -10,7 +10,8 @@ class Menu:
         self.scale_index = 0
         self.setting_options = {
             "GAME SCALE": self.scales[0],
-            "VOLUME": GAME_VOLUME
+            "VOLUME": GAME_VOLUME,
+            "MULTI MODE": "OFF"  # Thêm tùy chọn mới
         }
         self.setting_chosen = False
         self.setting_index = 0
@@ -27,6 +28,86 @@ class Menu:
         self.pos = pos
         self.spacing = spacing
         self.selected_index = 0
+        self.multi_mode = False # Biến logic điều khiển chế độ
+
+    def draw_settings(self, screen):
+        # Background
+        bg = pygame.transform.scale(self.start_screen[0], (SCREEN_WIDTH, SCREEN_HEIGHT))
+        screen.blit(bg, (0, 0))
+
+        # Title
+        title = "SETTINGS"
+        letter_sprites = self.font["status"]
+        start_x = SCREEN_WIDTH // 2 - (len(title) * MENU_FONT[0]) // 2
+        start_y = 50
+        x = start_x
+        for ch in title:
+            if 'A' <= ch <= 'Z':
+                index = 26 + (ord(ch) - ord('A'))
+                letter_surface = pygame.transform.scale(letter_sprites[index], MENU_FONT)
+                screen.blit(letter_surface, (x, start_y))
+                x += letter_surface.get_width() + 2
+
+        # Draw each setting option with its value
+        option_y = 150
+        keys = list(self.setting_options.keys())
+        for i, option in enumerate(keys):
+            value = self.setting_options[option]
+            line = f"{option}: {value}"
+            x = SCREEN_WIDTH // 2 - (len(line) * (MENU_FONT[0] // 2)) // 2
+
+            for ch in line.upper():
+                letter_surface = None
+                
+                if 'A' <= ch <= 'Z':
+                    index = 26 + (ord(ch) - ord('A'))
+                    letter_surface = pygame.transform.scale(
+                        letter_sprites[index],
+                        (MENU_FONT[0] // 2, MENU_FONT[1] // 2)
+                    )
+                elif ch.isdigit():
+                    digit_surface = self.digits[int(ch)]
+                    letter_surface = pygame.transform.scale(
+                        digit_surface,
+                        (MENU_FONT[0] // 2, MENU_FONT[1] // 2)
+                    )
+                elif ch == ' ' or ch == ':':
+                    x += 20
+                    continue
+
+                if letter_surface:
+                    # Apply tint depending on state
+                    if i == self.setting_index:
+                        # Cyan khi đang chỉnh (chosen), Yellow khi mới chỉ vào
+                        color = (0, 255, 255) if self.setting_chosen else (255, 255, 0)
+                        tinted = letter_surface.copy()
+                        tinted.fill(color, special_flags=pygame.BLEND_RGB_MULT)
+                        screen.blit(tinted, (x, option_y))
+                    else:
+                        screen.blit(letter_surface, (x, option_y))
+                    x += letter_surface.get_width() + 2
+
+            option_y += self.spacing
+
+    def update_setting(self, up):
+        if self.setting_index == 0:
+            # Edit game scale
+            if up:
+                self.scale_index = (self.scale_index + 1) % len(self.scales)
+            else:
+                self.scale_index = (self.scale_index - 1) % len(self.scales)
+            self.setting_options["GAME SCALE"] = self.scales[self.scale_index]
+            
+        elif self.setting_index == 1:
+            # Edit game volume
+            change = 1 if up else -1
+            new_vol = self.setting_options["VOLUME"] + change
+            self.setting_options["VOLUME"] = max(0, min(100, new_vol))
+            
+        elif self.setting_index == 2:
+            # Toggle Multi Mode (Bất kể lên hay xuống đều đảo trạng thái)
+            self.multi_mode = not self.multi_mode
+            self.setting_options["MULTI MODE"] = "ON" if self.multi_mode else "OFF"
 
     def draw(self, screen):
         if not self.game_start:
@@ -85,67 +166,67 @@ class Menu:
                     x += 20
             option_y += self.spacing
 
-    def draw_settings(self, screen):
-        # Background
-        bg = pygame.transform.scale(self.start_screen[0], (SCREEN_WIDTH, SCREEN_HEIGHT))
-        screen.blit(bg, (0, 0))
+    # def draw_settings(self, screen):
+    #     # Background
+    #     bg = pygame.transform.scale(self.start_screen[0], (SCREEN_WIDTH, SCREEN_HEIGHT))
+    #     screen.blit(bg, (0, 0))
 
-        # Title
-        title = "SETTINGS"
-        letter_sprites = self.font["status"]
-        start_x = SCREEN_WIDTH // 2 - (len(title) * MENU_FONT[0]) // 2
-        start_y = 50
-        x = start_x
-        for ch in title:
-            if 'A' <= ch <= 'Z':
-                index = 26 + (ord(ch) - ord('A'))
-                letter_surface = pygame.transform.scale(letter_sprites[index], MENU_FONT)
-                screen.blit(letter_surface, (x, start_y))
-                x += letter_surface.get_width() + 2
+    #     # Title
+    #     title = "SETTINGS"
+    #     letter_sprites = self.font["status"]
+    #     start_x = SCREEN_WIDTH // 2 - (len(title) * MENU_FONT[0]) // 2
+    #     start_y = 50
+    #     x = start_x
+    #     for ch in title:
+    #         if 'A' <= ch <= 'Z':
+    #             index = 26 + (ord(ch) - ord('A'))
+    #             letter_surface = pygame.transform.scale(letter_sprites[index], MENU_FONT)
+    #             screen.blit(letter_surface, (x, start_y))
+    #             x += letter_surface.get_width() + 2
 
-        # Draw each setting option with its value
-        option_y = 150
-        for i, (option, value) in enumerate(self.setting_options.items()):
-            line = f"{option}: {value}"
-            x = SCREEN_WIDTH // 2 - (len(line) * MENU_FONT[0] // 2) // 2
+    #     # Draw each setting option with its value
+    #     option_y = 150
+    #     for i, (option, value) in enumerate(self.setting_options.items()):
+    #         line = f"{option}: {value}"
+    #         x = SCREEN_WIDTH // 2 - (len(line) * MENU_FONT[0] // 2) // 2
 
-            for ch in line.upper():
-                if 'A' <= ch <= 'Z':
-                    index = 26 + (ord(ch) - ord('A'))
-                    letter_surface = pygame.transform.scale(
-                        letter_sprites[index],
-                        (MENU_FONT[0] // 2, MENU_FONT[1] // 2)
-                    )
-                elif ch.isdigit():
-                    digit_surface = self.digits[int(ch)]
-                    letter_surface = pygame.transform.scale(
-                        digit_surface,
-                        (MENU_FONT[0] // 2, MENU_FONT[1] // 2)
-                    )
-                elif ch == ' ' or ch == ':':
-                    x += 20
-                    continue
-                else:
-                    continue
+    #         for ch in line.upper():
+    #             if 'A' <= ch <= 'Z':
+    #                 index = 26 + (ord(ch) - ord('A'))
+    #                 letter_surface = pygame.transform.scale(
+    #                     letter_sprites[index],
+    #                     (MENU_FONT[0] // 2, MENU_FONT[1] // 2)
+    #                 )
+    #             elif ch.isdigit():
+    #                 digit_surface = self.digits[int(ch)]
+    #                 letter_surface = pygame.transform.scale(
+    #                     digit_surface,
+    #                     (MENU_FONT[0] // 2, MENU_FONT[1] // 2)
+    #                 )
+    #             elif ch == ' ' or ch == ':':
+    #                 x += 20
+    #                 continue
+    #             else:
+    #                 continue
 
-                # Apply tint depending on state
-                if i == self.setting_index:
-                    if self.setting_chosen:
-                        # Different tint when chosen (cyan here)
-                        tinted = letter_surface.copy()
-                        tinted.fill((0, 255, 255), special_flags=pygame.BLEND_RGB_MULT)
-                        screen.blit(tinted, (x, option_y))
-                    else:
-                        # Normal selection tint (yellow)
-                        tinted = letter_surface.copy()
-                        tinted.fill((255, 255, 0), special_flags=pygame.BLEND_RGB_MULT)
-                        screen.blit(tinted, (x, option_y))
-                else:
-                    screen.blit(letter_surface, (x, option_y))
+    #             # Apply tint depending on state
+    #             if i == self.setting_index:
+    #                 if self.setting_chosen:
+    #                     # Different tint when chosen (cyan here)
+    #                     tinted = letter_surface.copy()
+    #                     tinted.fill((0, 255, 255), special_flags=pygame.BLEND_RGB_MULT)
+    #                     screen.blit(tinted, (x, option_y))
+    #                 else:
+    #                     # Normal selection tint (yellow)
+    #                     tinted = letter_surface.copy()
+    #                     tinted.fill((255, 255, 0), special_flags=pygame.BLEND_RGB_MULT)
+    #                     screen.blit(tinted, (x, option_y))
+    #             else:
+    #                 screen.blit(letter_surface, (x, option_y))
 
-                x += letter_surface.get_width() + 2
+    #             x += letter_surface.get_width() + 2
 
-            option_y += self.spacing
+    #         option_y += self.spacing
 
     def draw_about(self, screen):
         # Background
@@ -240,19 +321,19 @@ class Menu:
                     return False
         return False
 
-    def update_setting(self, up):
-        if self.setting_index == 0:
-            #edit game scale
-            if up:
-                self.scale_index = (self.scale_index + 1) % len(self.scales)
-            else:
-                self.scale_index = (self.scale_index - 1) % len(self.scales)
+    # def update_setting(self, up):
+    #     if self.setting_index == 0:
+    #         #edit game scale
+    #         if up:
+    #             self.scale_index = (self.scale_index + 1) % len(self.scales)
+    #         else:
+    #             self.scale_index = (self.scale_index - 1) % len(self.scales)
             
-            self.setting_options["GAME SCALE"] = self.scales[self.scale_index]
-        else:
-            #edit game volume
-            if up:
-                self.setting_options["VOLUME"] = (self.setting_options["VOLUME"] + 1) % 100
-            else:
-                self.setting_options["VOLUME"] = (self.setting_options["VOLUME"] - 1) % 100
+    #         self.setting_options["GAME SCALE"] = self.scales[self.scale_index]
+    #     else:
+    #         #edit game volume
+    #         if up:
+    #             self.setting_options["VOLUME"] = (self.setting_options["VOLUME"] + 1) % 100
+    #         else:
+    #             self.setting_options["VOLUME"] = (self.setting_options["VOLUME"] - 1) % 100
             
