@@ -1343,6 +1343,7 @@ class Game:
                         self.net_manager.send_world_state(
                             self._get_shared_world_objects(),
                             self.knives + self.enemy_projectiles,
+                            self.enemy_particles,
                             self.collision_map,
                             {
                                 'time_stop_active': self.shared_time_stop_active,

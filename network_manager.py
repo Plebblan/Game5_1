@@ -32,6 +32,8 @@ class NetworkManager:
         self.remote_enemies = {}  # {enemy_id: enemy_data}
         self.remote_projectiles = {}  # {projectile_id: projectile_data}
         self.remote_projectile_timestamps = {}
+        self.remote_enemy_particles = {}
+        self.remote_enemy_particle_timestamps = {}
         self.remote_map_state = {}
         self.remote_map_version = 0
         self.world_owner_id = None
@@ -150,6 +152,10 @@ class NetworkManager:
             self.remote_projectile_timestamps = {
                 projectile_id: now for projectile_id in self.remote_projectiles.keys()
             }
+            self.remote_enemy_particles = state.get('enemy_particles', {}).copy()
+            self.remote_enemy_particle_timestamps = {
+                particle_id: now for particle_id in self.remote_enemy_particles.keys()
+            }
             self.remote_map_state = state.get('map', self.remote_map_state)
             self.remote_map_version = self.remote_map_state.get('version', self.remote_map_version)
             self.world_owner_id = state.get('world_owner_id', self.world_owner_id)
@@ -250,7 +256,7 @@ class NetworkManager:
             )
         )
 
-    def send_world_state(self, enemies, projectiles, map_obj=None, shared_state=None):
+    def send_world_state(self, enemies, projectiles, enemy_particles, map_obj=None, shared_state=None):
         """Send the current local world state for remote clients"""
         if not self.is_client or not self.connected:
             return
@@ -269,10 +275,15 @@ class NetworkManager:
             projectile.projectile_id: ProjectileStateData.serialize(projectile)
             for projectile in projectiles if hasattr(projectile, 'projectile_id')
         }
+        enemy_particle_states = {
+            p.projectile_id: ProjectileStateData.serialize(p)
+            for p in enemy_particles if hasattr(p, 'projectile_id')
+        }
 
         payload = {
             'enemies': enemy_states,
             'projectiles': projectile_states,
+            'enemy_particles': enemy_particle_states,
             'map': MapStateData.serialize(map_obj) if map_obj is not None else {},
             'shared': shared_state or {},
         }
@@ -446,6 +457,21 @@ class NetworkManager:
     def enable_debug(self, enabled=True):
         """Enable debug logging"""
         self.debug_mode = enabled
+        
+    def get_remote_enemy_particles(self):
+        now = time.time()
+
+        stale_ids = [
+            particle_id
+            for particle_id, timestamp in self.remote_enemy_particle_timestamps.items()
+            if now - timestamp > 0.25
+        ]
+
+        for particle_id in stale_ids:
+            self.remote_enemy_particles.pop(particle_id, None)
+            self.remote_enemy_particle_timestamps.pop(particle_id, None)
+
+        return self.remote_enemy_particles.copy()
 
 
 class LocalNetworkManager(NetworkManager):
