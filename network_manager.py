@@ -10,6 +10,7 @@ from network_protocol import (
     PlayerStateData,
     EnemyStateData,
     ProjectileStateData,
+    ParticleStateData,
     MapStateData
 )
 from network_client import NetworkClient
@@ -162,7 +163,8 @@ class NetworkManager:
             self.remote_shared_state = state.get('shared', self.remote_shared_state)
             if self.debug_mode:
                 print(f"[NETWORK] Received world state - players={len(self.remote_players)}, "
-                      f"enemies={len(self.remote_enemies)}, projectiles={len(self.remote_projectiles)}")
+                      f"enemies={len(self.remote_enemies)}, projectiles={len(self.remote_projectiles)}, "
+                      f"enemy_particles={len(self.remote_enemy_particles)}: {list(self.remote_enemy_particles.keys())}")
 
         elif msg.msg_type == MessageType.PROJECTILE_SPAWN:
             owner_id = msg.data.get('owner_id')
@@ -230,6 +232,11 @@ class NetworkManager:
         self.remote_projectile_timestamps = {
             projectile_id: now for projectile_id in self.remote_projectiles.keys()
         }
+        self.remote_enemy_particles = state.get('enemy_particles', {}).copy()
+        now = time.time()
+        self.remote_enemy_particle_timestamps = {
+            particle_id: now for particle_id in self.remote_enemy_particles.keys()
+        }
         self.remote_map_state = state.get('map', {})
         self.remote_map_version = self.remote_map_state.get('version', 0)
         self.world_owner_id = state.get('world_owner_id')
@@ -276,9 +283,12 @@ class NetworkManager:
             for projectile in projectiles if hasattr(projectile, 'projectile_id')
         }
         enemy_particle_states = {
-            p.projectile_id: ProjectileStateData.serialize(p)
-            for p in enemy_particles if hasattr(p, 'projectile_id')
+            p.particle_id: ParticleStateData.serialize(p)
+            for p in enemy_particles if hasattr(p, 'particle_id')
         }
+
+        if self.debug_mode:
+            print(f"[NETWORK] Sending world state - enemy_particles: {list(enemy_particle_states.keys())}")
 
         payload = {
             'enemies': enemy_states,
@@ -464,7 +474,7 @@ class NetworkManager:
         stale_ids = [
             particle_id
             for particle_id, timestamp in self.remote_enemy_particle_timestamps.items()
-            if now - timestamp > 0.25
+            if now - timestamp > 2.0
         ]
 
         for particle_id in stale_ids:

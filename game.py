@@ -423,6 +423,7 @@ class Game:
 
         if self.enable_multiplayer and self.net_manager:
             self._apply_remote_projectile_interactions()
+            self._apply_remote_enemy_particles_interactions(dt)
 
         if not self.time_stop:
             for knife in self.knives:
@@ -701,6 +702,9 @@ class Game:
             try:
                 if not enemy_data.get('alive', True) or enemy_data.get('dead', False):
                     continue
+                entity_type = enemy_data.get('entity_type', '')
+                if entity_type == 'boss':
+                    continue  # Boss is drawn separately
                 pos_x = enemy_data.get('pos_x', 0)
                 pos_y = enemy_data.get('pos_y', 0)
                 screen_x = int(pos_x - self.camera_x)
@@ -740,11 +744,57 @@ class Game:
         if not remote_enemy_particles:
             return
 
+        print(f"[DEBUG] Drawing remote enemy particles: {list(remote_enemy_particles.keys())}")
+
         for particle_data in remote_enemy_particles.values():
             try:
                 if not particle_data.get('alive', True):
                     continue
-                self._draw_remote_projectile_sprite(screen, particle_data)
+                
+                class_name = particle_data.get('class_name')
+                if class_name == "SmokeColumn":
+                    # Special drawing for SmokeColumn
+                    pos_x = particle_data.get('pos_x', 0)
+                    pos_y = particle_data.get('pos_y', 0)
+                    frame_index = particle_data.get('frame_index', 0)
+                    
+                    print(f"[DEBUG] Drawing SmokeColumn at {pos_x}, {pos_y}")
+                    
+                    frames = self.loader.get_animation("smoke")
+                    if not frames:
+                        continue
+                    
+                    # Tint frames red like local
+                    tinted_frames = [tint_surface_red(f) for f in frames]
+                    frame = tinted_frames[frame_index % len(tinted_frames)]
+                    h = frame.get_height()
+                    layers = 4  # Always 4 layers like local
+                    overlap = h * 0.45
+                    height = int(h + (layers - 1) * overlap)
+                    
+                    # Calculate bottom y from center y
+                    bottom_y = pos_y + height // 2
+                    
+                    for i in range(layers):
+                        # Fade higher layers slightly
+                        alpha = int(255 * (1 - i * 0.18))
+                        frame_copy = frame.copy()
+                        frame_copy.set_alpha(alpha)
+                        
+                        rect = frame_copy.get_rect(midbottom=(pos_x, bottom_y - i * overlap))
+                        screen.blit(frame_copy, rect.move(-self.camera_x, -self.camera_y))
+                else:
+                    # Draw enemy particles
+                    image = self._get_enemy_particles_visual(particle_data)
+                    if image is None:
+                        continue
+                    
+                    pos_x = particle_data.get('pos_x', 0)
+                    pos_y = particle_data.get('pos_y', 0)
+                    
+                    rect = image.get_rect(center=(int(pos_x), int(pos_y)))
+                    screen.blit(image, rect.move(-self.camera_x, -self.camera_y))
+                
             except (KeyError, TypeError):
                 pass
 
@@ -882,8 +932,7 @@ class Game:
         class_name = projectile_data.get('class_name')
         if class_name == "MasterSparkProjectile":
             self._draw_remote_master_spark(screen, projectile_data)
-            return
-
+            return        
         image = self._get_projectile_visual(projectile_data)
         if image is None:
             return
@@ -1179,6 +1228,13 @@ class Game:
         if class_name == "ShotProjectile":
             frames = self.loader.get_animation("marisa_shot_a")
             return frames[frame_index % len(frames)]
+        return None
+
+    def _get_enemy_particles_visual(self, particle_data):
+        """Get visual representation for enemy particles"""
+        class_name = particle_data.get('class_name')
+        frame_index = particle_data.get('frame_index', 0)
+
         if class_name == "DashTrail":
             frames = self.loader.get_animation("marisa_after_effect_s")
             return frames[frame_index % len(frames)]
@@ -1186,6 +1242,7 @@ class Game:
             frames = self.loader.get_animation("marisa_zangai")
             return frames[frame_index % len(frames)]
         if class_name == "SmokeColumn":
+            # SmokeColumn has special drawing logic, return single frame
             frames = self.loader.get_animation("smoke")
             return frames[frame_index % len(frames)]
         return None
@@ -1213,6 +1270,27 @@ class Game:
 
         rect = image.get_rect(center=(int(pos_x), int(pos_y)))
         return get_tight_hitbox(image, rect, "center")
+
+    def _build_remote_enemy_particles_hitbox(self, particle_data):
+        """Build hitbox for remote enemy particles"""
+        class_name = particle_data.get('class_name')
+        pos_x = particle_data.get('pos_x', 0)
+        pos_y = particle_data.get('pos_y', 0)
+
+        if class_name == "SmokeColumn":
+            # SmokeColumn has a rect covering the stacked column
+            frames = self.loader.get_animation("smoke")
+            if frames:
+                frame = frames[0]
+                h = frame.get_height()
+                layers = 4  # Always 4 layers
+                overlap = h * 0.45
+                height = int(h + (layers - 1) * overlap)
+                width = frame.get_width()
+                return pygame.Rect(int(pos_x - width//2), int(pos_y - height), width, height)
+        else:
+            pass
+        return None
 
     def _damage_synced_object_from_remote_knife(self, projectile_id, hitbox):
         if projectile_id in self.processed_remote_projectile_hits:
@@ -1270,7 +1348,7 @@ class Game:
         if self.boss and self.boss.visible and not self.boss._dead and not self.boss._dying:
             self.boss.update_hurtbox()
             if hitbox.colliderect(self.boss.hurtbox):
-                self.boss.take_damage(5)
+                self.boss.take_damage(15)
                 self.processed_remote_projectile_hits.add(projectile_id)
                 self.consumed_remote_projectiles.add(projectile_id)
                 return
@@ -1316,6 +1394,26 @@ class Game:
                     self.player.apply_damage(damage, hitbox.centerx)
                     if class_name in {"ShotProjectile", "UndershotProjectile"}:
                         self.consumed_remote_projectiles.add(projectile_id)
+
+    def _apply_remote_enemy_particles_interactions(self, dt):
+        """Apply interactions with remote enemy particles (e.g., smoke drains time energy)"""
+        if not self.enable_multiplayer or not self.net_manager:
+            return
+
+        player_hurtbox = self.player.get_hurtbox_rect()
+        remote_particles = self.net_manager.get_remote_enemy_particles()
+
+        for particle_id, particle_data in remote_particles.items():
+            if not particle_data.get('alive', True):
+                continue
+
+            class_name = particle_data.get('class_name')
+            if class_name == "SmokeColumn":
+                # SmokeColumn drains shared time energy when player is hit
+                hitbox = self._build_remote_enemy_particles_hitbox(particle_data)
+                if hitbox and hitbox.colliderect(player_hurtbox):
+                    self.shared_time_stop_energy -= 50 * dt
+                    self.player._inSmoke = True
 
     def _realign_synced_object(self, obj):
         if isinstance(obj, Wisp):
