@@ -457,7 +457,7 @@ class NetworkManager:
     def enable_debug(self, enabled=True):
         """Enable debug logging"""
         self.debug_mode = enabled
-        
+
     def get_remote_enemy_particles(self):
         now = time.time()
 
@@ -484,6 +484,7 @@ class LocalNetworkManager(NetworkManager):
         self.remote_players = {}
         self.remote_enemies = {}
         self.remote_projectiles = {}
+        self.remote_enemy_particles = {} 
     
     def update(self, delta_time):
         """No-op for offline mode"""

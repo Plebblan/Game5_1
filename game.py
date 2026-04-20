@@ -433,6 +433,7 @@ class Game:
         self._assign_projectile_ids(self.knives)
         if self._is_world_authority():
             self._assign_projectile_ids(self.enemy_projectiles)
+            self._assign_particle_ids(self.enemy_particles)
 
     # -----------------------
     # COLLISION
@@ -640,6 +641,7 @@ class Game:
             if not self._using_local_world_sync():
                 self._draw_remote_enemies(filtered)
             self._draw_remote_projectiles(filtered)
+            self._draw_remote_enemy_particles(filtered)
             
             # ===== DRAW NETWORK STATUS =====
             self._draw_network_status(filtered)
@@ -729,6 +731,23 @@ class Game:
             except (KeyError, TypeError):
                 pass
 
+    def _draw_remote_enemy_particles(self, screen):
+        """Draw remote enemy particles on screen"""
+        if not self.enable_multiplayer or not self.net_manager:
+            return
+
+        remote_enemy_particles = self.net_manager.get_remote_enemy_particles()
+        if not remote_enemy_particles:
+            return
+
+        for particle_data in remote_enemy_particles.values():
+            try:
+                if not particle_data.get('alive', True):
+                    continue
+                self._draw_remote_projectile_sprite(screen, particle_data)
+            except (KeyError, TypeError):
+                pass
+
     def _draw_network_status(self, screen):
         """Draw network status indicator"""
         font = pygame.font.SysFont(None, 24)
@@ -779,6 +798,17 @@ class Game:
         for projectile in projectiles:
             if not hasattr(projectile, "projectile_id"):
                 projectile.projectile_id = f"{owner}_proj_{self.projectile_sequence}"
+                self.projectile_sequence += 1
+
+    def _assign_particle_ids(self, particles):
+        """Assign network IDs to particles (like projectiles)"""
+        owner = "offline"
+        if self.net_manager and getattr(self.net_manager, "client", None):
+            owner = self.net_manager.client.player_id or owner
+
+        for particle in particles:
+            if not hasattr(particle, "projectile_id"):
+                particle.projectile_id = f"{owner}_particle_{self.projectile_sequence}"
                 self.projectile_sequence += 1
 
     def _get_local_map_state(self):
@@ -1148,6 +1178,15 @@ class Game:
             return frames[frame_index % len(frames)]
         if class_name == "ShotProjectile":
             frames = self.loader.get_animation("marisa_shot_a")
+            return frames[frame_index % len(frames)]
+        if class_name == "DashTrail":
+            frames = self.loader.get_animation("marisa_after_effect_s")
+            return frames[frame_index % len(frames)]
+        if class_name == "ZangaiTrail":
+            frames = self.loader.get_animation("marisa_zangai")
+            return frames[frame_index % len(frames)]
+        if class_name == "SmokeColumn":
+            frames = self.loader.get_animation("smoke")
             return frames[frame_index % len(frames)]
         return None
 
